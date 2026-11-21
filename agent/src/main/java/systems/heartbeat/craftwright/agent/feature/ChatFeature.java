@@ -4,8 +4,12 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.suggestion.Suggestion;
+import com.mojang.brigadier.suggestion.Suggestions;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.ClientSuggestionProvider;
@@ -20,6 +24,9 @@ import systems.heartbeat.craftwright.agent.wire.Codecs;
 
 /** The chat line: sending messages and commands, clicking on what the server wrote, tab completion. */
 public final class ChatFeature implements Feature {
+	/** How long a server may take to answer a completion. Some never answer when they have nothing to offer. */
+	private static final long SERVER_ANSWER_SECONDS = 3;
+
 	private final ChatLog chatLog;
 
 	public ChatFeature(ChatLog chatLog) {
@@ -92,7 +99,10 @@ public final class ChatFeature implements Feature {
 		ClientPacketListener connection = Game.connection(minecraft);
 		String input = withoutSlash(params.string("input"));
 		CommandDispatcher<ClientSuggestionProvider> commands = connection.getCommands();
-		return commands.getCompletionSuggestions(commands.parse(input, connection.getSuggestionsProvider())).thenApply(suggestions -> {
+		// Paper sends no answer at all when a plugin command offers nothing: silence then means "no suggestions".
+		Suggestions nothing = new Suggestions(StringRange.at(input.length()), List.of());
+		return commands.getCompletionSuggestions(commands.parse(input, connection.getSuggestionsProvider()))
+			.completeOnTimeout(nothing, SERVER_ANSWER_SECONDS, TimeUnit.SECONDS).thenApply(suggestions -> {
 			JsonArray texts = new JsonArray();
 			for (Suggestion suggestion : suggestions.getList()) {
 				texts.add(suggestion.getText());

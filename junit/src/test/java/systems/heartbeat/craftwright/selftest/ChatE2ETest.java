@@ -73,6 +73,11 @@ class ChatE2ETest {
 	}
 
 	@Test
+	void tabCompletionIsEmptyWhenTheServerOffersNothing(@Player("Alex") Client alex) {
+		assertEquals(List.of(), alex.chat().complete("/version nosuchplugin"));
+	}
+
+	@Test
 	void expectNoneCatchesWhatMustNotBeSaid(Server server, @Player("Alex") Client alex) {
 		server.console("say only public words");
 		alex.chat().await("only public words");

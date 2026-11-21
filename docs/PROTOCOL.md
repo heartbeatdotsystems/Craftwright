@@ -70,7 +70,7 @@ Requests run on the client thread, in the order they arrive. A few answer later,
 | `chat.send` | `message` | |
 | `chat.command` | `command`, with or without slash | |
 | `chat.click` | `contains` | `click`: the click event as chat components write it (`action` plus `command`, `url` or `value`). A `run_command` click is run. |
-| `chat.complete` | `input` | `suggestions[]` |
+| `chat.complete` | `input` | `suggestions[]`, empty if the server offers nothing or stays silent for 3 s |
 
 ### HUD and scoreboard
 

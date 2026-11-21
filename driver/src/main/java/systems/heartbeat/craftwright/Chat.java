@@ -50,7 +50,11 @@ public final class Chat {
 		return Click.of(remote.call("chat.click", Json.object("contains", words)).get("click"));
 	}
 
-	/** What pressing tab would offer for a command typed so far, e.g. {@code complete("/gamemode ")}. */
+	/**
+	 * What pressing tab would offer for a command typed so far, e.g. {@code complete("/gamemode ")}.
+	 * Empty when there is nothing to offer. A server that stays silent in that case (Paper does for
+	 * plugin commands) is given a few seconds before the answer is taken as empty.
+	 */
 	public List<String> complete(String typedSoFar) {
 		return Json.list(remote.call("chat.complete", Json.object("input", typedSoFar)), "suggestions", JsonElement::getAsString);
 	}
