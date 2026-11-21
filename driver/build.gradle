@@ -34,5 +34,25 @@ processResources {
 }
 
 test {
-	useJUnitPlatform()
+	useJUnitPlatform {
+		excludeTags 'e2e'
+	}
+}
+
+// Starts a real Paper server and a real Minecraft client. Needs network access and a few minutes.
+tasks.register('e2eTest', Test) {
+	description = 'Runs Craftwright against a real server and a real client.'
+	group = 'verification'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform {
+		includeTags 'e2e'
+	}
+	systemProperty 'craftwright.dir', layout.buildDirectory.dir('craftwright').get().asFile.absolutePath
+	outputs.upToDateWhen { false }
+	testLogging {
+		events 'passed', 'failed', 'skipped'
+		exceptionFormat 'full'
+		showStandardStreams = true
+	}
 }

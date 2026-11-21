@@ -1,0 +1,21 @@
+{
+	"required": true,
+	"package": "systems.heartbeat.craftwright.agent.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"BossHealthOverlayAccessor",
+		"ChatComponentMixin",
+		"DisconnectedScreenAccessor",
+		"HudMixin",
+		"MinecraftInvoker",
+		"MinecraftMixin",
+		"PlayerTabOverlayAccessor",
+		"UserMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}

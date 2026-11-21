@@ -26,3 +26,25 @@ jobs:
       - uses: gradle/actions/setup-gradle@v5
       - name: Build
         run: ./gradlew build --no-daemon --stacktrace
+      - name: Cache Minecraft, Paper and HeadlessMC
+        uses: actions/cache@v5
+        with:
+          path: ~/.craftwright
+          key: craftwright-${{ runner.os }}-${{ hashFiles('gradle.properties') }}
+      - name: End-to-end test with a real server and a real client
+        run: ./gradlew :driver:e2eTest --no-daemon --stacktrace
+      - name: Show logs
+        if: failure()
+        run: |
+          for file in $(find driver/build/craftwright -name 'launcher.log' -o -name 'latest.log' -o -name 'console.log' 2>/dev/null); do
+            echo "──────── $file"
+            tail -n 150 "$file"
+          done
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: craftwright-run
+          path: |
+            driver/build/craftwright/**/*.log
+            driver/build/reports/tests
+          if-no-files-found: ignore

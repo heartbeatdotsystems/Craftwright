@@ -4,19 +4,28 @@
 	"version": "${version}",
 	"name": "Craftwright Agent",
 	"description": "Lets tests drive this Minecraft client over a local control port. For automated testing only.",
-	"authors": ["heartbeat.systems"],
+	"authors": [
+		"heartbeat.systems"
+	],
 	"contact": {
 		"sources": "https://github.com/heartbeatdotsystems/Craftwright"
 	},
 	"license": "MIT",
 	"environment": "client",
 	"entrypoints": {
-		"client": ["systems.heartbeat.craftwright.agent.CraftwrightAgent"]
+		"client": [
+			"systems.heartbeat.craftwright.agent.CraftwrightAgent"
+		]
 	},
 	"depends": {
 		"fabricloader": ">=0.20.1",
 		"minecraft": "~26.3",
-		"java": ">=25",
-		"fabric-api": "*"
-	}
+		"java": ">=25"
+	},
+	"mixins": [
+		{
+			"config": "craftwright.mixins.json",
+			"environment": "client"
+		}
+	]
 }
