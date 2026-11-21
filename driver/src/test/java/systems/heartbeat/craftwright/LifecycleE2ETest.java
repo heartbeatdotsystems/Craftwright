@@ -59,6 +59,10 @@ class LifecycleE2ETest {
 	@Test
 	@Order(3)
 	void kickShowsTheReason() {
+		// A kick in the first moments after the login can reach the game as a bare "Disconnected":
+		// the connection closes before the client has read the reason. A player who chats has arrived.
+		alex.chat().say("here I am");
+		server.awaitLog("here I am");
 		server.console("kick Alex Testing the kick screen");
 		Text reason = alex.awaitDisconnect();
 		assertTrue(reason.contains("Testing the kick screen"), reason.plain());
