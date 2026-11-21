@@ -86,14 +86,14 @@ class WorldE2ETest {
 
 	@Test
 	void borderHasCentreAndSize() {
-		server.console("worldborder center 100 -50");
+		server.console("worldborder center 100.0 -50.0");
 		server.console("worldborder set 300");
 		try {
 			WorldBorder border = alex.await("the border to be 300 blocks wide",
 				() -> java.util.Optional.of(alex.world().border()).filter(seen -> seen.size() == 300.0 && seen.centerX() == 100.0));
 			assertEquals(-50.0, border.centerZ());
 		} finally {
-			server.console("worldborder center 0 0");
+			server.console("worldborder center 0.0 0.0");
 			server.console("worldborder set 59999968");
 		}
 	}
