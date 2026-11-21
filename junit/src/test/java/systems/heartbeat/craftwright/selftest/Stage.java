@@ -1,5 +1,6 @@
 package systems.heartbeat.craftwright.selftest;
 
+import java.util.Optional;
 import systems.heartbeat.craftwright.Client;
 import systems.heartbeat.craftwright.Menu;
 import systems.heartbeat.craftwright.Server;
@@ -32,6 +33,7 @@ final class Stage {
 		server.console("kill @e[type=minecraft:item]");
 		server.console("tp " + client.name() + " " + (x + 0.5) + " " + FLOOR + " " + (z + 0.5));
 		client.player().awaitPosition(x + 0.5, FLOOR, z + 0.5, 0.3);
+		client.awaitTrue("empty hands", () -> client.player().inventory().stream().allMatch(Optional::isEmpty));
 		return stage;
 	}
 
