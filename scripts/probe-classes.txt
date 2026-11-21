@@ -141,3 +141,9 @@ net.minecraft.client.gui.screens.multiplayer.ServerSelectionList
 net.minecraft.world.item.component.TooltipDisplay
 net.minecraft.world.entity.player.StackedContents
 net.minecraft.client.multiplayer.ClientChunkCache
+com.mojang.blaze3d.pipeline.RenderTarget
+com.mojang.blaze3d.pipeline.MainTarget
+com.mojang.blaze3d.platform.NativeImage
+com.mojang.blaze3d.platform.Window
+net.minecraft.client.renderer.GameRenderer
+net.minecraft.client.KeyboardHandler

@@ -10,10 +10,12 @@ for candidate in $(find "$HOME/.gradle" . -name '*.jar' -path '*minecraft*' 2>/d
 done
 [ -n "$JAR" ] || { echo "no Minecraft client jar found"; exit 1; }
 echo "Minecraft jar: $JAR"
-unzip -l "$JAR" | awk '{print $4}' | grep -E '^(net/minecraft/(client/gui/components|client/gui/screens|client/gui/screens/inventory|client/gui|client/multiplayer|client/player|client/input|client|network/protocol/game|network/protocol/common|network/chat|world/inventory|world/scores|resources)|com/mojang/blaze3d/platform)/[^/$]*\.class$' > "$OUT/classes.txt"
+unzip -l "$JAR" | awk '{print $4}' | grep -E '^(net/minecraft/(client/gui/components|client/gui/screens|client/gui/screens/inventory|client/gui|client/multiplayer|client/player|client/input|client|network/protocol/game|network/protocol/common|network/chat|world/inventory|world/scores|resources)|com/mojang/blaze3d/platform|com/mojang/blaze3d/pipeline)/[^/$]*\.class$' > "$OUT/classes.txt"
 CLASSES="$(cat "$(dirname "$0")/probe-classes.txt" | grep -v '^#' | tr '\n' ' ')"
 for c in $CLASSES; do
   echo "##### $c"
   javap -p -cp "$JAR" "$c" 2>&1 || true
 done > "$OUT/signatures.txt"
+# Call sites worth reading when a getter moved: how vanilla itself takes a screenshot.
+javap -p -c -cp "$JAR" net.minecraft.client.KeyboardHandler 2>&1 | grep -B14 -A4 'Screenshot' > "$OUT/callsites.txt" || true
 wc -l "$OUT/classes.txt" "$OUT/signatures.txt"
