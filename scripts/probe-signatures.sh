@@ -10,7 +10,7 @@ for candidate in $(find "$HOME/.gradle" . -name '*.jar' -path '*minecraft*' 2>/d
 done
 [ -n "$JAR" ] || { echo "no Minecraft client jar found"; exit 1; }
 echo "Minecraft jar: $JAR"
-unzip -l "$JAR" | awk '{print $4}' | grep -E '^net/minecraft/(client/gui/components|client/gui/screens|client/gui/screens/inventory|client/multiplayer|client/player|client|network/protocol/game|network/protocol/common|world/inventory)/[^/$]*\.class$' > "$OUT/classes.txt"
+unzip -l "$JAR" | awk '{print $4}' | grep -E '^(net/minecraft/(client/gui/components|client/gui/screens|client/gui/screens/inventory|client/gui|client/multiplayer|client/player|client/input|client|network/protocol/game|network/protocol/common|network/chat|world/inventory|world/scores|resources)|com/mojang/blaze3d/platform)/[^/$]*\.class$' > "$OUT/classes.txt"
 CLASSES="$(cat "$(dirname "$0")/probe-classes.txt" | grep -v '^#' | tr '\n' ' ')"
 for c in $CLASSES; do
   echo "##### $c"

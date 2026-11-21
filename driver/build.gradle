@@ -1,0 +1,38 @@
+plugins {
+	id 'java-library'
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	api 'com.google.code.gson:gson:2.13.2'
+
+	testImplementation platform('org.junit:junit-bom:5.13.4')
+	testImplementation 'org.junit.jupiter:junit-jupiter'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+java {
+	toolchain.languageVersion = JavaLanguageVersion.of(25)
+	withSourcesJar()
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 21
+	it.options.encoding = 'UTF-8'
+}
+
+// The agent mod travels inside the driver jar, so users need a single dependency.
+def agentJar = project(':agent').tasks.named('jar')
+processResources {
+	from(agentJar) {
+		into 'craftwright/agents'
+		rename { "fabric-${rootProject.minecraft_version}.jar" }
+	}
+}
+
+test {
+	useJUnitPlatform()
+}

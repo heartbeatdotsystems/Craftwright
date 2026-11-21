@@ -26,9 +26,3 @@ jobs:
       - uses: gradle/actions/setup-gradle@v5
       - name: Build
         run: ./gradlew build --no-daemon --stacktrace
-      - name: Probe Minecraft signatures
-        run: ./scripts/probe-signatures.sh build/probe && cat build/probe/classes.txt
-      - uses: actions/upload-artifact@v5
-        with:
-          name: probe
-          path: build/probe
