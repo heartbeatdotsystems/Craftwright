@@ -21,7 +21,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
  * }</pre>
  *
  * <p>The server and the clients are shared by all tests of the class and stopped after the last one.
- * For anything the attributes do not cover, add a static method annotated with {@link ConfigureServer}.</p>
+ * For anything the attributes do not cover, add a static method annotated with {@link ConfigureServer},
+ * or name a {@link ServerSetup} to share one server between several test classes.</p>
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
@@ -40,4 +41,10 @@ public @interface CraftwrightTest {
 
 	/** How long {@code await…} calls wait before the test fails. */
 	int timeoutSeconds() default 15;
+
+	/**
+	 * A named setup. Test classes with the same setup and the same settings share one server for the whole run.
+	 * Without it every test class starts its own.
+	 */
+	Class<? extends ServerSetup> setup() default ServerSetup.PerClass.class;
 }

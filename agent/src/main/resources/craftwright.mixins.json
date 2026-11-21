@@ -5,6 +5,7 @@
 	"client": [
 		"BossHealthOverlayAccessor",
 		"ChatComponentMixin",
+		"ClientPacketListenerMixin",
 		"DisconnectedScreenAccessor",
 		"HudMixin",
 		"MinecraftInvoker",

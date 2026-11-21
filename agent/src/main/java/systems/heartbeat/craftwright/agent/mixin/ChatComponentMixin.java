@@ -15,16 +15,16 @@ import systems.heartbeat.craftwright.agent.Agent;
 public abstract class ChatComponentMixin {
 	@Inject(method = "addServerSystemMessage", at = @At("HEAD"))
 	private void craftwright$system(Component text, CallbackInfo callback) {
-		Agent.get().chatEvent("system", text);
+		Agent.get().observer().chat("system", text);
 	}
 
 	@Inject(method = "addPlayerMessage", at = @At("HEAD"))
 	private void craftwright$player(Component text, MessageSignature signature, GuiMessageTag tag, CallbackInfo callback) {
-		Agent.get().chatEvent("player", text);
+		Agent.get().observer().chat("player", text);
 	}
 
 	@Inject(method = "addClientSystemMessage", at = @At("HEAD"))
 	private void craftwright$client(Component text, CallbackInfo callback) {
-		Agent.get().chatEvent("client", text);
+		Agent.get().observer().chat("client", text);
 	}
 }

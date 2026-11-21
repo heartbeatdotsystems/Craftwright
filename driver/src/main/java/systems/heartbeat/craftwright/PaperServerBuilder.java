@@ -6,6 +6,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import systems.heartbeat.craftwright.internal.server.PaperSpec;
 
 /**
  * Describes a Paper server before it starts.
@@ -19,17 +21,17 @@ import java.util.Map;
  * }</pre>
  */
 public final class PaperServerBuilder {
-	final Craftwright session;
-	final String version;
-	final List<Path> plugins = new ArrayList<>();
-	final List<String> pluginUrls = new ArrayList<>();
-	final Map<String, String> files = new LinkedHashMap<>();
-	final Map<String, String> properties = new LinkedHashMap<>();
-	final List<String> jvmArgs = new ArrayList<>();
-	Path template;
-	String memory = "2G";
-	String name = "server";
-	Duration startTimeout = Duration.ofMinutes(5);
+	private final Craftwright session;
+	private final String version;
+	private final List<Path> plugins = new ArrayList<>();
+	private final List<String> pluginUrls = new ArrayList<>();
+	private final Map<String, String> files = new LinkedHashMap<>();
+	private final Map<String, String> properties = new LinkedHashMap<>();
+	private final List<String> jvmArguments = new ArrayList<>();
+	private Path template;
+	private String memory = "2G";
+	private String name = "server";
+	private Duration startTimeout = Duration.ofMinutes(5);
 
 	PaperServerBuilder(Craftwright session, String version) {
 		this.session = session;
@@ -105,7 +107,7 @@ public final class PaperServerBuilder {
 	}
 
 	public PaperServerBuilder jvmArg(String arg) {
-		jvmArgs.add(arg);
+		jvmArguments.add(arg);
 		return this;
 	}
 
@@ -116,9 +118,11 @@ public final class PaperServerBuilder {
 
 	/** Downloads Paper if needed, starts the server and waits until it accepts players. */
 	public Server start() {
-		PaperServer server = new PaperServer(this);
+		PaperSpec spec = new PaperSpec(name, version, plugins, pluginUrls, files, properties, jvmArguments,
+			Optional.ofNullable(template), memory, startTimeout);
+		PaperServer server = new PaperServer(spec, session.directory(), session.defaultTimeout());
 		session.register(server);
-		server.start();
+		server.start(session.cacheDirectory());
 		return server;
 	}
 }

@@ -1,19 +1,21 @@
 package systems.heartbeat.craftwright;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import systems.heartbeat.craftwright.internal.AgentConnection;
-import systems.heartbeat.craftwright.internal.Downloads;
 import systems.heartbeat.craftwright.internal.ManagedProcess;
+import systems.heartbeat.craftwright.internal.launch.AgentAddress;
+import systems.heartbeat.craftwright.internal.launch.AgentJar;
+import systems.heartbeat.craftwright.internal.launch.ClientDirectories;
+import systems.heartbeat.craftwright.internal.launch.ClientSpec;
+import systems.heartbeat.craftwright.internal.launch.FirstLaunch;
+import systems.heartbeat.craftwright.internal.launch.GameDirectory;
+import systems.heartbeat.craftwright.internal.launch.HeadlessMc;
 
 /**
  * Describes a client before it starts.
@@ -24,18 +26,18 @@ import systems.heartbeat.craftwright.internal.ManagedProcess;
  * }</pre>
  */
 public final class ClientBuilder {
-	private static final String HEADLESSMC_VERSION = System.getProperty("craftwright.headlessmc.version", "3.0.0-RC9");
-	private static final Object FIRST_LAUNCH_LOCK = new Object();
-	private static final java.util.Set<String> INSTALLED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+	private static final int OUTPUT_ON_FAILURE = 60;
+	/** A client that asks nothing on first start, makes no noise and draws as little as possible. */
+	private static final Map<String, String> DEFAULT_OPTIONS = defaultOptions();
 
 	private final Craftwright session;
 	private final String name;
+	private final List<Path> mods = new ArrayList<>();
+	private final Map<String, String> options = new LinkedHashMap<>(DEFAULT_OPTIONS);
 	private String minecraftVersion;
 	private boolean rendering;
 	private String memory = "2G";
 	private Duration startTimeout = Duration.ofMinutes(10);
-	private final List<Path> mods = new ArrayList<>();
-	private final Map<String, String> options = new LinkedHashMap<>();
 
 	ClientBuilder(Craftwright session, String name) {
 		if (!name.matches("[A-Za-z0-9_]{1,16}")) {
@@ -44,6 +46,10 @@ public final class ClientBuilder {
 		this.session = session;
 		this.name = name;
 		this.minecraftVersion = session.minecraftVersion();
+	}
+
+	private static Map<String, String> defaultOptions() {
+		Map<String, String> options = new LinkedHashMap<>();
 		options.put("onboardAccessibility", "false");
 		options.put("pauseOnLostFocus", "false");
 		options.put("skipMultiplayerWarning", "true");
@@ -54,9 +60,10 @@ public final class ClientBuilder {
 		options.put("renderDistance", "4");
 		options.put("simulationDistance", "5");
 		options.put("maxFps", "30");
+		return options;
 	}
 
-	/** Minecraft version of the client. Defaults to the version of the session. */
+	/** The Minecraft version of the client. Defaults to the version of the server started last. */
 	public ClientBuilder minecraft(String version) {
 		this.minecraftVersion = version;
 		return this;
@@ -71,29 +78,30 @@ public final class ClientBuilder {
 		return this;
 	}
 
-	/** Heap size for the client, e.g. {@code 2G}. */
+	/** Maximum heap of the game, e.g. {@code 2G}. */
 	public ClientBuilder memory(String memory) {
 		this.memory = memory;
 		return this;
 	}
 
-	/** Adds another Fabric mod to this client, e.g. the client half of what is being tested. */
+	/** Adds a Fabric mod next to the agent, e.g. to test a server together with its client mod. */
 	public ClientBuilder mod(Path jar) {
 		mods.add(jar);
 		return this;
 	}
 
-	/** Sets a line of the client's {@code options.txt}, e.g. {@code option("lang", "de_de")}. */
+	/** Sets a line of {@code options.txt}. */
 	public ClientBuilder option(String key, String value) {
 		options.put(key, value);
 		return this;
 	}
 
-	/** Shortcut for the game language, e.g. {@code de_de}. */
+	/** The game language, e.g. {@code de_de}. Servers see it as the player's locale. */
 	public ClientBuilder language(String locale) {
 		return option("lang", locale);
 	}
 
+	/** How long the first start may take. It includes downloading the game. */
 	public ClientBuilder startTimeout(Duration timeout) {
 		this.startTimeout = timeout;
 		return this;
@@ -101,118 +109,43 @@ public final class ClientBuilder {
 
 	/** Installs the game if needed, starts it and waits until it reaches the title screen. */
 	public Client start() {
-		Path cache = session.cacheDirectory();
-		Path clientDirectory = session.directory().resolve("clients").resolve(name);
-		Path gameDirectory = clientDirectory.resolve("game");
-		Path launcherDirectory = clientDirectory.resolve("headlessmc");
-		Path headlessMc = Downloads.file("https://github.com/headlesshq/headlessmc/releases/download/" + HEADLESSMC_VERSION
-			+ "/headlessmc.jar", cache.resolve("headlessmc").resolve("headlessmc-" + HEADLESSMC_VERSION + ".jar"));
-		String javaHome = System.getProperty("java.home");
-		try {
-			Files.createDirectories(gameDirectory.resolve("mods"));
-			Files.createDirectories(launcherDirectory);
-			Files.copy(agentJar(cache), gameDirectory.resolve("mods").resolve("craftwright-agent.jar"), StandardCopyOption.REPLACE_EXISTING);
-			for (Path mod : mods) {
-				Files.copy(mod, gameDirectory.resolve("mods").resolve(mod.getFileName()), StandardCopyOption.REPLACE_EXISTING);
-			}
-			StringBuilder optionsFile = new StringBuilder();
-			options.forEach((key, value) -> optionsFile.append(key).append(':').append(value).append('\n'));
-			Files.writeString(gameDirectory.resolve("options.txt"), optionsFile.toString(), StandardCharsets.UTF_8);
-			Files.writeString(launcherDirectory.resolve("config.properties"), String.join("\n",
-				"hmc.java.versions=" + escape(javaHome),
-				"hmc.files.game=" + escape(gameDirectory.toAbsolutePath().toString()),
-				"hmc.files.game-for-each-version=false",
-				"hmc.files.mc=" + escape(cache.resolve("minecraft").toAbsolutePath().toString()),
-				"hmc.jline.enabled=false",
-				"hmc.launcher.crash-report-watcher=true",
-				"hmc.assets.dummy=" + !rendering,
-				""), StandardCharsets.UTF_8);
-		} catch (IOException e) {
-			throw new CraftwrightException("Cannot prepare the client directory " + clientDirectory, e);
+		if (!AgentJar.existsFor(minecraftVersion)) {
+			throw new CraftwrightException("This Craftwright version has no agent for Minecraft " + minecraftVersion
+				+ ". Supported: " + Craftwright.SUPPORTED_MINECRAFT_VERSIONS);
 		}
+		ClientSpec spec = new ClientSpec(name, minecraftVersion, rendering, memory, mods, options);
+		ClientDirectories directories = ClientDirectories.in(session.directory(), name);
+		GameDirectory.prepare(directories.game(), spec);
+		HeadlessMc launcher = new HeadlessMc(session.cacheDirectory());
+		List<String> command = launcher.command(spec, directories, new AgentAddress(session.control().port(), session.control().token()));
 
-		String jvmArgs = String.join(" ",
-			"-Xms512M",
-			"-Xmx" + memory,
-			"-Djava.awt.headless=true",
-			"-Dcraftwright.connect=127.0.0.1:" + session.control().port(),
-			"-Dcraftwright.token=" + session.control().token(),
-			"-Dcraftwright.client=" + name,
-			"-Dcraftwright.username=" + name);
-		List<String> command = new ArrayList<>();
-		if (rendering) {
-			command.addAll(List.of("xvfb-run", "-a", "-s", "-screen 0 1280x720x24 +extension GLX +render -noreset"));
-		}
-		command.add(Path.of(javaHome, "bin", "java").toString());
-		command.add("-Dhmc.files.location=" + launcherDirectory.toAbsolutePath());
-		if (rendering) {
-			command.add("-Dhmc.xvfb.check=true");
-		}
-		command.addAll(List.of("-jar", headlessMc.toAbsolutePath().toString(), "launch", "--offline"));
-		if (!rendering) {
-			command.add("-lwjgl");
-		}
-		command.addAll(List.of("--jvm", jvmArgs, "fabric", minecraftVersion));
-
-		Map<String, String> environment = Map.of("HMC_FILES_LOCATION", launcherDirectory.toAbsolutePath().toString());
-		ManagedProcess process;
-		AgentConnection connection;
-		// The first launch of a version downloads the game. Later launches may run side by side.
-		if (INSTALLED.contains(minecraftVersion)) {
-			process = new ManagedProcess("client " + name, command, clientDirectory, environment, clientDirectory.resolve("launcher.log"));
-			connection = awaitAgent(process);
-		} else {
-			synchronized (FIRST_LAUNCH_LOCK) {
-				process = new ManagedProcess("client " + name, command, clientDirectory, environment, clientDirectory.resolve("launcher.log"));
-				connection = awaitAgent(process);
-				INSTALLED.add(minecraftVersion);
-			}
-		}
-		ManagedProcess started = process;
-		Client client = new Client(name, connection, () -> {
-			if (!started.waitFor(10)) {
-				started.destroy();
-			}
-		}, () -> started.tail(60), gameDirectory, rendering, session.defaultTimeout());
-		session.register(client);
-		return client;
+		return FirstLaunch.guarded(minecraftVersion, () -> {
+			ManagedProcess process = new ManagedProcess("client " + name, command, directories.root(),
+				launcher.environment(directories), directories.launcherLog());
+			AgentConnection connection = awaitAgent(process);
+			Client client = new Client(new Remote(name, connection, session.defaultTimeout()),
+				new ClientProcess(process, directories.game(), rendering));
+			session.register(client);
+			return client;
+		});
 	}
 
 	private AgentConnection awaitAgent(ManagedProcess process) {
 		try {
-			return session.control().awaitClient(name, startTimeout, () -> {
-				if (!process.isAlive()) {
-					return java.util.Optional.of("the launcher process has stopped");
-				}
-				// HeadlessMC stays open after the game has exited, so its output is the only sign.
-				return process.lines().stream().filter(line -> line.contains("failed with code")).findFirst()
-					.map(line -> "the game exited (" + line.trim() + ")");
-			}, () -> "Last output:\n" + process.tail(60));
+			return session.control().awaitClient(name, startTimeout, () -> startFailure(process),
+				() -> "Last output:\n" + process.tail(OUTPUT_ON_FAILURE));
 		} catch (RuntimeException e) {
 			process.destroy();
 			throw e;
 		}
 	}
 
-	private Path agentJar(Path cache) throws IOException {
-		String override = System.getProperty("craftwright.agent.jar");
-		if (override != null) {
-			return Path.of(override);
+	/** Why waiting for the agent makes no sense any more, if that is the case. */
+	private static Optional<String> startFailure(ManagedProcess process) {
+		if (!process.isAlive()) {
+			return Optional.of("the launcher process has stopped");
 		}
-		String resource = "/craftwright/agents/fabric-" + minecraftVersion + ".jar";
-		try (InputStream in = ClientBuilder.class.getResourceAsStream(resource)) {
-			if (in == null) {
-				throw new CraftwrightException("This Craftwright version has no agent for Minecraft " + minecraftVersion
-					+ ". Supported: " + Craftwright.SUPPORTED_MINECRAFT_VERSIONS);
-			}
-			Path target = session.directory().resolve("agent-fabric-" + minecraftVersion + ".jar");
-			Files.createDirectories(target.getParent());
-			Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
-			return target;
-		}
-	}
-
-	private static String escape(String path) {
-		return path.replace("\\", "\\\\");
+		return process.lines().stream().filter(HeadlessMc::reportsGameExit).findFirst()
+			.map(line -> "the game exited (" + line.trim() + ")");
 	}
 }

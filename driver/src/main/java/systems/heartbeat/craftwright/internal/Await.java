@@ -28,16 +28,29 @@ public final class Await {
 				throw new AwaitTimeoutException("Timed out after " + timeout.toMillis() + " ms waiting for " + what
 					+ (extra == null || extra.isEmpty() ? "" : "\n" + extra));
 			}
-			try {
-				Thread.sleep(POLL_MILLIS);
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-				throw new AwaitTimeoutException("Interrupted while waiting for " + what);
-			}
+			pause("waiting for " + what);
 		}
 	}
 
 	public static void untilTrue(String what, Duration timeout, Supplier<Boolean> probe, Supplier<String> context) {
 		until(what, timeout, () -> probe.get() ? Optional.of(Boolean.TRUE) : Optional.empty(), context);
+	}
+
+	/** Runs the check again and again for the whole time. The check throws when it sees what must not happen. */
+	public static void during(Duration time, Runnable check) {
+		long deadline = System.nanoTime() + time.toNanos();
+		do {
+			check.run();
+			pause("watching");
+		} while (System.nanoTime() < deadline);
+	}
+
+	private static void pause(String doing) {
+		try {
+			Thread.sleep(POLL_MILLIS);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			throw new AwaitTimeoutException("Interrupted while " + doing);
+		}
 	}
 }

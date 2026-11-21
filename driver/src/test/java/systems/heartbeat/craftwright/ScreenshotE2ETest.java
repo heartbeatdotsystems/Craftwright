@@ -22,12 +22,12 @@ class ScreenshotE2ETest {
 			Client camera = craftwright.client("Camera").rendering(true).start();
 			camera.join(server);
 			server.console("time set noon");
-			Position position = camera.player().state().position();
+			Position position = camera.player().position();
 			int x = position.blockX();
 			int y = position.blockY() + 1;
 			int z = position.blockZ() + 3;
 			server.console("setblock " + x + " " + y + " " + z + " minecraft:diamond_block");
-			camera.player().awaitState("to see the diamond block", state -> camera.world().block(x, y, z).is("diamond_block"));
+			camera.world().awaitBlock(x, y, z, "diamond_block");
 			camera.player().lookAt(x + 0.5, y + 0.5, z + 0.5);
 
 			Path file = camera.screenshot(craftwright.directory().resolve("screenshots").resolve("camera.png"));

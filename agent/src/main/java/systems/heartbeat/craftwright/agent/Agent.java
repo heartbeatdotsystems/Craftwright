@@ -1,49 +1,69 @@
 package systems.heartbeat.craftwright.agent;
 
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.net.Socket;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayDeque;
-import java.util.Deque;
+import java.util.List;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.DisconnectedScreen;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.network.chat.Component;
-import systems.heartbeat.craftwright.agent.mixin.DisconnectedScreenAccessor;
+import systems.heartbeat.craftwright.agent.control.Mining;
+import systems.heartbeat.craftwright.agent.control.Movement;
+import systems.heartbeat.craftwright.agent.control.Ticking;
+import systems.heartbeat.craftwright.agent.feature.ChatFeature;
+import systems.heartbeat.craftwright.agent.feature.ClientFeature;
+import systems.heartbeat.craftwright.agent.feature.Feature;
+import systems.heartbeat.craftwright.agent.feature.HudFeature;
+import systems.heartbeat.craftwright.agent.feature.InteractionFeature;
+import systems.heartbeat.craftwright.agent.feature.MenuFeature;
+import systems.heartbeat.craftwright.agent.feature.MovementFeature;
+import systems.heartbeat.craftwright.agent.feature.PlayerFeature;
+import systems.heartbeat.craftwright.agent.feature.ScoreboardFeature;
+import systems.heartbeat.craftwright.agent.feature.TradeFeature;
+import systems.heartbeat.craftwright.agent.feature.WorldFeature;
+import systems.heartbeat.craftwright.agent.observe.ChatLog;
+import systems.heartbeat.craftwright.agent.observe.DisconnectWatcher;
+import systems.heartbeat.craftwright.agent.observe.GameObserver;
+import systems.heartbeat.craftwright.agent.protocol.DriverLink;
+import systems.heartbeat.craftwright.agent.protocol.Messages;
+import systems.heartbeat.craftwright.agent.protocol.Router;
 
 /**
- * The agent inside the client. It connects to the driver once the game has loaded,
- * runs every request on the client thread and pushes events back.
+ * The agent inside the client. It puts the parts together: the link to the driver,
+ * the features that answer requests, and the things that need every tick.
  */
 public final class Agent {
-	public static final int PROTOCOL_VERSION = 1;
-	private static final int CHAT_MEMORY = 200;
 	private static final Agent INSTANCE = new Agent();
 
-	private final Deque<Component> recentChat = new ArrayDeque<>();
-	private final Controls controls = new Controls();
-	private final Requests requests = new Requests(this, controls);
-	private BufferedWriter writer;
+	private final Router router = new Router();
+	private final ChatLog chatLog = new ChatLog();
+	private final GameObserver observer = new GameObserver(this::emit, chatLog);
+	private final Movement movement = new Movement();
+	private final Mining mining = new Mining();
+	private final List<Ticking> ticking = List.of(movement, mining, new DisconnectWatcher(observer, this::resetControls));
+	private DriverLink link;
 	private boolean started;
-	private Screen reportedDisconnect;
 
 	private Agent() {
+		List<Feature> features = List.of(
+			new ClientFeature(this::resetControls),
+			new ChatFeature(chatLog),
+			new HudFeature(),
+			new ScoreboardFeature(),
+			new MenuFeature(),
+			new TradeFeature(),
+			new PlayerFeature(),
+			new MovementFeature(movement),
+			new InteractionFeature(mining),
+			new WorldFeature());
+		features.forEach(feature -> feature.register(router));
 	}
 
 	public static Agent get() {
 		return INSTANCE;
 	}
 
-	Deque<Component> recentChat() {
-		return recentChat;
+	/** Where the mixins report what the client was shown. */
+	public GameObserver observer() {
+		return observer;
 	}
 
 	/** Called at the end of every client tick. */
@@ -52,40 +72,28 @@ public final class Agent {
 			return;
 		}
 		if (!started) {
-			if (minecraft.gui.overlay() != null || minecraft.gui.screen() == null) {
+			if (!finishedLoading(minecraft)) {
 				return;
 			}
 			started = true;
 			connect(minecraft);
 		}
-		controls.tick(minecraft);
-		Screen screen = minecraft.gui.screen();
-		if (screen instanceof DisconnectedScreen && screen != reportedDisconnect) {
-			reportedDisconnect = screen;
-			controls.reset(minecraft);
-			JsonObject data = new JsonObject();
-			data.add("reason", Texts.wire(((DisconnectedScreenAccessor) screen).craftwright$details().reason()));
-			event("disconnect", data);
-		}
+		ticking.forEach(task -> task.tick(minecraft));
+	}
+
+	private static boolean finishedLoading(Minecraft minecraft) {
+		return minecraft.gui.overlay() == null && minecraft.gui.screen() != null;
 	}
 
 	private void connect(Minecraft minecraft) {
 		try {
 			String[] address = AgentConfig.CONNECT.split(":");
-			Socket socket = new Socket(address[0], Integer.parseInt(address[1]));
-			socket.setTcpNoDelay(true);
-			writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
-			JsonObject hello = new JsonObject();
-			hello.addProperty("token", AgentConfig.TOKEN);
-			hello.addProperty("client", AgentConfig.CLIENT_ID);
-			hello.addProperty("protocol", PROTOCOL_VERSION);
-			hello.addProperty("agent", version("craftwright-agent"));
-			hello.addProperty("minecraft", version("minecraft"));
-			hello.addProperty("player", minecraft.getUser().getName());
-			send(hello);
-			Thread reader = new Thread(() -> readLoop(minecraft, socket), "craftwright-agent");
-			reader.setDaemon(true);
-			reader.start();
+			link = DriverLink.open(address[0], Integer.parseInt(address[1]));
+			link.send(Messages.hello(AgentConfig.TOKEN, AgentConfig.CLIENT_ID, version("craftwright-agent"), version("minecraft"),
+				minecraft.getUser().getName()));
+			link.listen(
+				request -> minecraft.execute(() -> router.dispatch(minecraft, request, link::send)),
+				() -> quitWithoutDriver(minecraft));
 			System.out.println("[Craftwright] connected to the driver at " + AgentConfig.CONNECT);
 		} catch (IOException | RuntimeException e) {
 			System.err.println("[Craftwright] cannot reach the driver at " + AgentConfig.CONNECT + ": " + e);
@@ -93,97 +101,25 @@ public final class Agent {
 		}
 	}
 
-	private static String version(String modId) {
-		return FabricLoader.getInstance().getModContainer(modId)
-			.map(mod -> mod.getMetadata().getVersion().getFriendlyString()).orElse("unknown");
-	}
-
-	private void readLoop(Minecraft minecraft, Socket socket) {
-		try (BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))) {
-			String line;
-			while ((line = reader.readLine()) != null) {
-				if (line.isEmpty()) {
-					continue;
-				}
-				JsonObject request = JsonParser.parseString(line).getAsJsonObject();
-				minecraft.execute(() -> answer(minecraft, request));
-			}
-		} catch (IOException | RuntimeException e) {
-			// the driver went away
-		}
-		// A test client without its test has no reason to keep running.
+	/** A test client without its test has no reason to keep running. */
+	private static void quitWithoutDriver(Minecraft minecraft) {
 		System.out.println("[Craftwright] driver disconnected, quitting");
 		minecraft.execute(minecraft::stop);
 	}
 
-	private void answer(Minecraft minecraft, JsonObject request) {
-		JsonObject response = new JsonObject();
-		response.add("id", request.get("id"));
-		String method = request.get("method").getAsString();
-		JsonObject params = request.has("params") && request.get("params").isJsonObject()
-			? request.getAsJsonObject("params") : new JsonObject();
-		try {
-			response.add("result", requests.handle(minecraft, method, params));
-		} catch (RequestException e) {
-			response.add("error", error(e.getMessage()));
-		} catch (RuntimeException e) {
-			e.printStackTrace();
-			response.add("error", error(method + " crashed in the client: " + e));
-		}
-		send(response);
+	private void resetControls() {
+		Minecraft minecraft = Minecraft.getInstance();
+		ticking.forEach(task -> task.reset(minecraft));
 	}
 
-	private static JsonObject error(String message) {
-		JsonObject error = new JsonObject();
-		error.addProperty("message", message);
-		return error;
+	private void emit(String name, JsonObject data) {
+		if (link != null) {
+			link.send(Messages.event(name, data));
+		}
 	}
 
-	public void chatEvent(String kind, Component text) {
-		if (!AgentConfig.enabled()) {
-			return;
-		}
-		synchronized (recentChat) {
-			recentChat.addLast(text);
-			while (recentChat.size() > CHAT_MEMORY) {
-				recentChat.removeFirst();
-			}
-		}
-		JsonObject data = new JsonObject();
-		data.addProperty("kind", kind);
-		data.add("text", Texts.wire(text));
-		event("chat", data);
-	}
-
-	public void textEvent(String event, Component text) {
-		if (!AgentConfig.enabled() || text == null) {
-			return;
-		}
-		JsonObject data = new JsonObject();
-		data.add("text", Texts.wire(text));
-		event(event, data);
-	}
-
-	void event(String name, JsonElement data) {
-		JsonObject message = new JsonObject();
-		message.addProperty("event", name);
-		message.add("data", data);
-		send(message);
-	}
-
-	private void send(JsonObject message) {
-		BufferedWriter out = writer;
-		if (out == null) {
-			return;
-		}
-		try {
-			synchronized (out) {
-				out.write(message.toString());
-				out.write('\n');
-				out.flush();
-			}
-		} catch (IOException e) {
-			// the read loop notices the lost connection and quits the game
-		}
+	private static String version(String modId) {
+		return FabricLoader.getInstance().getModContainer(modId)
+			.map(mod -> mod.getMetadata().getVersion().getFriendlyString()).orElse("unknown");
 	}
 }

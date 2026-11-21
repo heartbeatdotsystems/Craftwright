@@ -2,6 +2,11 @@ package systems.heartbeat.craftwright;
 
 /** A point in the world. */
 public record Position(double x, double y, double z) {
+	/** Reads {@code x}, {@code y} and {@code z} of a wire object. */
+	static Position of(com.google.gson.JsonObject object) {
+		return new Position(object.get("x").getAsDouble(), object.get("y").getAsDouble(), object.get("z").getAsDouble());
+	}
+
 
 	public double distanceTo(Position other) {
 		double dx = x - other.x;
@@ -27,5 +32,10 @@ public record Position(double x, double y, double z) {
 
 	public int blockZ() {
 		return (int) Math.floor(z);
+	}
+
+	@Override
+	public String toString() {
+		return String.format(java.util.Locale.ROOT, "%.2f %.2f %.2f", x, y, z);
 	}
 }
