@@ -47,3 +47,4 @@ tasks.register('e2eTest', Test) {
 		showStandardStreams = true
 	}
 }
+tasks.named('e2eTest') { mustRunAfter(':driver:e2eTest') }

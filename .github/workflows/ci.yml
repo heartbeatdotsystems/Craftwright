@@ -32,7 +32,7 @@ jobs:
           path: ~/.craftwright
           key: craftwright-${{ runner.os }}-${{ hashFiles('gradle.properties') }}
       - name: End-to-end test with a real server and a real client
-        run: ./gradlew :driver:e2eTest :junit:e2eTest --no-daemon
+        run: ./gradlew :driver:e2eTest :junit:e2eTest --no-daemon --no-parallel
       - name: Show logs
         if: failure()
         run: |
