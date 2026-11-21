@@ -65,7 +65,7 @@ final class Requests {
 			case "client.connect" -> connect(minecraft, params);
 			case "client.disconnect" -> disconnect(minecraft);
 			case "client.quit" -> quit(minecraft);
-			case "client.screenshot" -> throw new RequestException("Screenshots are not available in this agent version yet");
+			case "client.screenshot" -> screenshot(minecraft, params);
 			case "chat.send" -> chatSend(minecraft, params);
 			case "chat.command" -> chatCommand(minecraft, params);
 			case "chat.click" -> chatClick(minecraft, params);
@@ -111,6 +111,24 @@ final class Requests {
 		result.add("screenTitle", screen == null ? JsonNull.INSTANCE : Texts.wire(screen.getTitle()));
 		result.addProperty("inWorld", minecraft.player != null && minecraft.level != null && minecraft.getConnection() != null);
 		return result;
+	}
+
+	/** Reads the frame the game rendered last and writes it as a PNG. The file appears once it is complete. */
+	private JsonElement screenshot(Minecraft minecraft, JsonObject params) {
+		java.nio.file.Path file = java.nio.file.Path.of(params.get("file").getAsString());
+		java.nio.file.Path partial = file.resolveSibling(file.getFileName() + ".part");
+		net.minecraft.client.Screenshot.takeScreenshot(minecraft.gameRenderer.mainRenderTarget(), image -> {
+			try (image) {
+				if (file.getParent() != null) {
+					java.nio.file.Files.createDirectories(file.getParent());
+				}
+				image.writeToFile(partial);
+				java.nio.file.Files.move(partial, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+			} catch (java.io.IOException e) {
+				System.out.println("[Craftwright] could not write the screenshot " + file + ": " + e);
+			}
+		});
+		return new JsonObject();
 	}
 
 	private JsonElement connect(Minecraft minecraft, JsonObject params) {

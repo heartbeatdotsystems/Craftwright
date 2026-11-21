@@ -134,7 +134,8 @@ Early. The API can still change before 1.0.
 
 - [x] Paper server, any number of clients, chat, HUD, menus, movement, world queries
 - [x] JUnit 5 extension
-- [ ] Screenshots and video (client with rendering)
+- [x] Screenshots (client with rendering)
+- [ ] Video
 - [ ] More Minecraft versions, Velocity and multi-server setups
 - [ ] Drivers for Node and Python
 

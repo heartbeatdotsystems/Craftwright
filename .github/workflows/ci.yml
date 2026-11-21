@@ -31,6 +31,8 @@ jobs:
         with:
           path: ~/.craftwright
           key: craftwright-${{ runner.os }}-${{ hashFiles('gradle.properties') }}
+      - name: Virtual display for the rendering client
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri libegl1 mesa-vulkan-drivers
       - name: End-to-end test with a real server and a real client
         run: ./gradlew :driver:e2eTest :junit:e2eTest --no-daemon --no-parallel
       - name: Show logs
