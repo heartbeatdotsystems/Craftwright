@@ -10,4 +10,4 @@ pluginManagement {
 }
 
 rootProject.name = 'craftwright'
-include 'agent', 'driver'
+include 'agent', 'driver', 'junit'
