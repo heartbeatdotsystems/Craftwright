@@ -35,9 +35,9 @@ class ScreenshotE2ETest {
 			BufferedImage image = ImageIO.read(file.toFile());
 			assertTrue(image.getWidth() >= 320 && image.getHeight() >= 240, "a full frame: " + image.getWidth() + "x" + image.getHeight());
 			Set<Integer> colors = new HashSet<>();
-			for (int x = 0; x < image.getWidth(); x += 16) {
-				for (int y = 0; y < image.getHeight(); y += 16) {
-					colors.add(image.getRGB(x, y));
+			for (int px = 0; px < image.getWidth(); px += 16) {
+				for (int py = 0; py < image.getHeight(); py += 16) {
+					colors.add(image.getRGB(px, py));
 				}
 			}
 			assertTrue(colors.size() > 20, "the screenshot is a real frame, not one flat colour (" + colors.size() + " colours)");
