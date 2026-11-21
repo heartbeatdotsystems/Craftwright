@@ -142,3 +142,10 @@ Early. The API can still change before 1.0.
 ## What it is not
 
 Not a bot framework for playing on other people's servers, not a cheat client, not a stress tester. It is a test tool for servers you start yourself.
+
+## License
+
+Craftwright is free software under the [GNU Lesser General Public License, version 3](COPYING.LESSER).
+You can use it in tests of any project, open or closed. Changes to Craftwright itself stay open under the same license.
+
+Craftwright is not affiliated with Mojang or Microsoft. Minecraft is downloaded from the official servers on the machine that runs the tests.
