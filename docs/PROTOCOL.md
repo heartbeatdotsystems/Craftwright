@@ -27,7 +27,7 @@ Once the title screen is up the agent connects and sends:
 ← {"id":8,"error":{"message":"The client is not in a world"}}
 ```
 
-Requests run on the client thread, in the order they arrive.
+Requests run on the client thread, in the order they arrive. A few answer later, when the game has the result: `client.screenshot` and `chat.complete`.
 
 ## Events
 
@@ -38,12 +38,22 @@ Requests run on the client thread, in the order they arrive.
 | Event | Data |
 |---|---|
 | `chat` | `kind` (`system`, `player`, `client`), `text` |
-| `title`, `subtitle`, `actionBar` | `text` |
+| `title` | `text`, `fadeIn`, `stay`, `fadeOut` (ticks) |
+| `subtitle`, `actionBar` | `text` |
+| `titleClear` | |
+| `sound` | `id`, `source`, `x`, `y`, `z`, `volume`, `pitch` |
+| `particle` | `id`, `options`, `x`, `y`, `z`, `count` |
 | `disconnect` | `reason` |
 
-A text is always `{"plain": "...", "json": <text component>}`.
+## Shapes
+
+- A **text** is `{"plain": "...", "json": <text component>}`.
+- An **item** is `null` for an empty slot, otherwise `id`, `count`, `name`, `lore[]`, `enchanted`, `glint`, `damage` and `data`. `data` is the stack as data packs write it: `id`, `count`, `components`.
+- An **entity** is `id`, `uuid`, `type`, `name`, `displayName`, `customName` (or `null`), `customNameVisible`, `x`, `y`, `z`, `invisible`, `glowing`, `sneaking`, and for living entities `health` and `equipment` (slot name to item).
 
 ## Methods
+
+### Client
 
 | Method | Params | Result |
 |---|---|---|
@@ -51,34 +61,67 @@ A text is always `{"plain": "...", "json": <text component>}`.
 | `client.connect` | `host`, `port` | |
 | `client.disconnect` | | |
 | `client.quit` | | |
+| `client.screenshot` | `file` | answers when the PNG is written |
+
+### Chat
+
+| Method | Params | Result |
+|---|---|---|
 | `chat.send` | `message` | |
-| `chat.command` | `command` (no slash) | |
-| `chat.click` | `contains` | `action`, `value` |
+| `chat.command` | `command`, with or without slash | |
+| `chat.click` | `contains` | `click`: the click event as chat components write it (`action` plus `command`, `url` or `value`). A `run_command` click is run. |
+| `chat.complete` | `input` | `suggestions[]` |
+
+### HUD and scoreboard
+
+| Method | Params | Result |
+|---|---|---|
 | `hud.bossBars` | | `bossBars[]`: `name`, `progress`, `color`, `overlay` |
 | `hud.tabList` | | `header`, `footer`, `entries[]`: `name`, `displayName`, `gameMode`, `latency` |
-| `hud.sidebar` | | `shown`, `title`, `lines[]`: `text`, `score` |
-| `menu.get` | | `open`, `id`, `type`, `title`, `slots[]`: `index`, `item`, `playerInventory`; `carried` |
-| `menu.click` | `menu`, `slot`, `button`, `mode` (`pickup`, `quick_move`, `swap`, `clone`, `throw`, `pickup_all`) | |
+| `scoreboard.display` | `slot` (`sidebar`, `list`, `below_name`) | `shown`, `objective`, `title`, `lines[]`: `owner`, `text`, `score`, `formatted` |
+| `scoreboard.teams` | | `teams[]`: `name`, `displayName`, `prefix`, `suffix`, `nameTagVisibility`, `members[]` |
+
+### Menus and trades
+
+| Method | Params | Result |
+|---|---|---|
+| `menu.get` | | `open`, and if open `id`, `type`, `title`, `slots[]` (`index`, `item`, `playerInventory`), `carried` |
+| `menu.inventory` | | the player's own inventory in the same form |
+| `menu.click` | `menu`, `slot` (`-999` is next to the menu), `button`, `mode` (`pickup`, `quick_move`, `swap`, `clone`, `throw`, `pickup_all`) | |
+| `menu.drag` | `menu`, `slots[]`, `button` (`0` spread evenly, `1` one each) | |
 | `menu.close` | | |
-| `player.state` | | `x`, `y`, `z`, `yaw`, `pitch`, `health`, `food`, `saturation`, `experienceLevel`, `gameMode`, `dimension`, `onGround`, `dead`, `selectedHotbarSlot` |
+| `trade.offers` | | `merchantLevel`, `offers[]`: `index`, `firstCost`, `secondCost`, `result`, `uses`, `maxUses`, `outOfStock` |
+| `trade.select` | `index` | |
+
+### Player
+
+| Method | Params | Result |
+|---|---|---|
+| `player.state` | | `x`, `y`, `z`, `yaw`, `pitch`, `health`, `food`, `saturation`, `experienceLevel`, `experienceProgress`, `gameMode`, `dimension`, `onGround`, `dead`, `sneaking`, `sprinting`, `flying`, `mayFly`, `selectedHotbarSlot`, `effects[]` (`id`, `amplifier`, `duration`) |
+| `player.inventory` | | `slots[]` of items |
+| `player.heldItem` | | `item`, `offHand` |
+| `player.selectHotbar` | `slot` | |
+| `player.swapHands` | | |
+| `player.drop` | `wholeStack` | |
+| `player.respawn` | | |
 | `player.look` | `yaw`, `pitch` | |
 | `player.lookAt` | `x`, `y`, `z` | |
 | `player.input` | `forward`, `back`, `left`, `right`, `jump`, `sneak`, `sprint` | |
 | `player.jump` | | |
 | `player.walkTo` | `x`, `z` | |
 | `player.walking` | | `walking` |
-| `player.selectHotbar` | `slot` | |
 | `player.use`, `player.attack` | | |
-| `player.useBlock`, `player.breakBlock` | `x`, `y`, `z` | |
+| `player.useBlock` | `x`, `y`, `z`, optional `face` (`up`, `down`, `north`, `south`, `east`, `west`) | |
+| `player.breakBlock` | `x`, `y`, `z` | |
 | `player.breaking` | | `breaking` |
 | `player.stopBreaking` | | |
-| `player.useEntity`, `player.attackEntity` | `target` (type id or name) | |
-| `player.drop` | `wholeStack` | |
-| `player.respawn` | | |
-| `player.inventory` | | `slots[]` of items |
-| `player.heldItem` | | `item` |
-| `world.block` | `x`, `y`, `z` | `id`, `properties`, `blockEntity` |
-| `world.entities` | | `entities[]`: `id`, `uuid`, `type`, `name`, `x`, `y`, `z`, `invisible` |
-| `world.time` | | `dayTime`, `raining` |
+| `player.useEntity`, `player.attackEntity` | `target` (type id, name or UUID) | |
 
-An item is `null` or `{"id","count","name","lore[]"}`.
+### World
+
+| Method | Params | Result |
+|---|---|---|
+| `world.block` | `x`, `y`, `z` | `id`, `properties`, `blockEntity` (data or `null`) |
+| `world.entities` | | `entities[]` |
+| `world.time` | | `dayTime`, `raining` |
+| `world.border` | | `centerX`, `centerZ`, `size` |

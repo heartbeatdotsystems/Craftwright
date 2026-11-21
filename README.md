@@ -12,12 +12,13 @@ class WelcomeTest {
     void newPlayersAreGreeted(Server server, @Player("Alex") Client alex) {
         alex.chat().await("Welcome, Alex!");
         alex.hud().titles().await("Welcome");
+        alex.sounds().await("entity.player.levelup");
 
-        alex.command("kit starter");
-        Menu kits = alex.awaitMenu("Kits");
+        alex.chat().command("kit");
+        Menu kits = alex.menus().await("Kits");
         kits.slotNamed("Starter").click();
 
-        alex.player().awaitState("to own a stone sword", state -> alex.player().count("stone_sword") == 1);
+        alex.player().awaitCount("stone_sword", 1);
         assertTrue(server.logContains("Alex claimed kit starter"));
     }
 }
@@ -79,22 +80,60 @@ try (Craftwright craftwright = Craftwright.create()) {
 
 | | |
 |---|---|
-| `client.chat()` | chat and system messages, with the full component (colours, click and hover events) |
-| `client.hud().titles()`, `subtitles()`, `actionBar()` | every title and action bar text received |
-| `client.hud().bossBars()`, `tabList()`, `sidebar()` | boss bars, tab list with header, footer and display names, scoreboard sidebar |
-| `client.menu()`, `awaitMenu(title)` | open container: type, title, slots, item names and lore |
-| `client.player()` | position, health, food, game mode, dimension, inventory |
-| `client.world()` | blocks and entities the server sent to this client |
+| `client.chat()` | chat and system messages with the full component: colours, click and hover events |
+| `client.hud()` | titles with their fade times, subtitles, action bar, boss bars, tab list with header, footer and display names |
+| `client.scoreboard()` | sidebar, player list scores, the line below names, teams with prefix and suffix |
+| `client.menus()` | the open container, the player's own inventory screen, a villager's offers |
+| `client.sounds()`, `client.particles()` | every sound and particle burst the server sent |
+| `client.player()` | position, health, food, experience, effects, game mode, dimension, inventory, both hands |
+| `client.world()` | blocks with state and block entity data, entities with name and equipment, border, time, weather |
 
-**Doing** – `say`, `command`, `clickChat` (clickable chat texts), `walkTo`, `hold(Key...)`, `jump`, `look`, `lookAt`, `use`, `attack`, `useBlock`, `breakBlock`, `useEntity`, `attackEntity`, `selectHotbar`, `drop`, `respawn`, and on menus `click`, `rightClick`, `shiftClick`, `swapWithHotbar`, `drop`, `close`.
+Items come with name, lore, enchantments, durability and all data components, so a custom head or a named crate key can be checked exactly.
+
+**Doing** – what a player does with keyboard and mouse:
+
+| | |
+|---|---|
+| Chat | `say`, `command`, `click` on clickable text, `complete` for tab completion |
+| Menus | `click`, `rightClick`, `shiftClick`, `middleClick`, `doubleClick`, `swapWithHotbar`, `drop`, `moveTo`, `drag`, `dragOneEach`, `dropCarried`, `close` |
+| Trading | `merchant().select(offer)`, then take the result slot |
+| Moving | `walkTo`, `tryWalkTo`, `hold(Key...)`, `jump`, `look`, `lookAt` |
+| World | `use`, `attack`, `useBlock`, `placeAgainst`, `breakBlock`, `tryBreakBlock`, `useEntity`, `attackEntity` |
+| Items | `selectHotbar`, `swapHands`, `drop`, `respawn` |
+
+```java
+alex.player().useBlock(10, 64, 10);                     // open the chest
+Menu chest = alex.menus().await("Treasure");
+chest.slotNamed("Excalibur").moveTo(13);                // pick up, put down
+chest.slot(4).shiftClick();                             // into the inventory
+alex.player().awaitCount("diamond", 8);
+```
 
 **Waiting** – no sleeps. Every `await…` polls until its condition holds and fails with what was seen instead:
 
 ```
 Timed out after 15000 ms waiting for chat message containing "Welcome" for Alex
-Last chat message received:
+Last chat messages received:
   | Alex joined the game
   | You need to accept the rules first: /rules
+```
+
+Chat, titles, sounds and particles are streams of type `Received`: `await(words)`, `await(pattern)`, `await(condition)`, `all()`, and `expectNone(words, duration)` for what must not appear. For anything else there is `client.await(description, probe)`.
+
+**Sharing a server** – a server per test class is the default. Classes that name the same `ServerSetup` share one server and its clients for the whole run, which saves the start time:
+
+```java
+public final class LobbyServer implements ServerSetup {
+    public void configure(PaperServerBuilder paper) {
+        paper.plugin("build/libs/Lobby-*.jar");
+    }
+}
+
+@CraftwrightTest(setup = LobbyServer.class)
+class KitTest { … }
+
+@CraftwrightTest(setup = LobbyServer.class)
+class RulesTest { … }
 ```
 
 ## How it works
@@ -133,7 +172,7 @@ A GitHub-hosted runner handles a server and two clients. The first run downloads
 
 Early. The API can still change before 1.0.
 
-- [x] Paper server, any number of clients, chat, HUD, menus, movement, world queries
+- [x] Paper server, any number of clients, chat, HUD, scoreboards, menus, trades, sounds, particles, movement, world queries
 - [x] JUnit 5 extension
 - [x] Screenshots (client with rendering)
 - [ ] Video
