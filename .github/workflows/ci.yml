@@ -32,19 +32,19 @@ jobs:
           path: ~/.craftwright
           key: craftwright-${{ runner.os }}-${{ hashFiles('gradle.properties') }}
       - name: End-to-end test with a real server and a real client
-        run: ./gradlew :driver:e2eTest --no-daemon --stacktrace
+        run: ./gradlew :driver:e2eTest :junit:e2eTest --no-daemon
       - name: Show logs
         if: failure()
         run: |
-          for file in $(find driver/build/craftwright -name 'launcher.log' -o -name 'latest.log' -o -name 'console.log' 2>/dev/null); do
+          for file in $(find driver/build/craftwright junit/build/craftwright -name 'launcher.log' -o -path '*/game/logs/latest.log' -o -name 'console.log' 2>/dev/null); do
             echo "──────── $file"
-            tail -n 150 "$file"
+            grep -v 'Downloading ' "$file" | tail -n 80
           done
       - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: craftwright-run
           path: |
-            driver/build/craftwright/**/*.log
-            driver/build/reports/tests
+            */build/craftwright/**/*.log
+            */build/reports/tests
           if-no-files-found: ignore

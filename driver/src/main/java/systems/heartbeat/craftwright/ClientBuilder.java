@@ -35,7 +35,7 @@ public final class ClientBuilder {
 	private final String name;
 	private String minecraftVersion;
 	private boolean rendering;
-	private String memory = "1G";
+	private String memory = "2G";
 	private Duration startTimeout = Duration.ofMinutes(10);
 	private final List<Path> mods = new ArrayList<>();
 	private final Map<String, String> options = new LinkedHashMap<>();
@@ -74,7 +74,7 @@ public final class ClientBuilder {
 		return this;
 	}
 
-	/** Heap size for the client, e.g. {@code 1G}. */
+	/** Heap size for the client, e.g. {@code 2G}. */
 	public ClientBuilder memory(String memory) {
 		this.memory = memory;
 		return this;
@@ -137,6 +137,7 @@ public final class ClientBuilder {
 		}
 
 		String jvmArgs = String.join(" ",
+			"-Xms512M",
 			"-Xmx" + memory,
 			"-Djava.awt.headless=true",
 			"-Dcraftwright.connect=127.0.0.1:" + session.control().port(),
@@ -185,9 +186,13 @@ public final class ClientBuilder {
 	private AgentConnection awaitAgent(ManagedProcess process) {
 		try {
 			return session.control().awaitClient(name, startTimeout, () -> {
-				String state = process.isAlive() ? "The client is still starting." : "The client process has stopped.";
-				return state + " Last output:\n" + process.tail(60);
-			});
+				if (!process.isAlive()) {
+					return java.util.Optional.of("the launcher process has stopped");
+				}
+				// HeadlessMC stays open after the game has exited, so its output is the only sign.
+				return process.lines().stream().filter(line -> line.contains("failed with code")).findFirst()
+					.map(line -> "the game exited (" + line.trim() + ")");
+			}, () -> "Last output:\n" + process.tail(60));
 		} catch (RuntimeException e) {
 			process.destroy();
 			throw e;

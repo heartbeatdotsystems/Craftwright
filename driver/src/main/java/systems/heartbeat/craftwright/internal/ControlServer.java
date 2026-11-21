@@ -44,9 +44,19 @@ public final class ControlServer implements AutoCloseable {
 		return token;
 	}
 
-	public AgentConnection awaitClient(String clientId, Duration timeout, Supplier<String> context) {
-		return Await.until("client '" + clientId + "' to start and report in", timeout,
-			() -> Optional.ofNullable(connections.get(clientId)), context);
+	/**
+	 * @param failure checked while waiting: a non-empty answer means the client cannot start any more
+	 */
+	public AgentConnection awaitClient(String clientId, Duration timeout, Supplier<Optional<String>> failure, Supplier<String> context) {
+		return Await.until("client '" + clientId + "' to start and report in", timeout, () -> {
+			AgentConnection connection = connections.get(clientId);
+			if (connection == null) {
+				failure.get().ifPresent(reason -> {
+					throw new CraftwrightException("Client '" + clientId + "' did not start: " + reason + "\n" + context.get());
+				});
+			}
+			return Optional.ofNullable(connection);
+		}, context);
 	}
 
 	private void acceptLoop() {
