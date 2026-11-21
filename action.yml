@@ -1,0 +1,37 @@
+name: Set up Craftwright
+description: Prepares a runner for tests with a real Minecraft server and a real client - Java, a virtual display and the download cache.
+branding:
+  icon: box
+  color: green
+inputs:
+  java-version:
+    description: Java version for the server and the client. Minecraft 26.x needs 25.
+    default: '25'
+  rendering:
+    description: Install a virtual display (Xvfb and Mesa) for clients that render and take screenshots.
+    default: 'true'
+  cache:
+    description: Keep Minecraft, Paper and the launcher between runs.
+    default: 'true'
+  cache-key:
+    description: Extra text for the cache key, for example the Minecraft version you test against.
+    default: default
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-java@v5
+      with:
+        distribution: temurin
+        java-version: ${{ inputs.java-version }}
+    - name: Virtual display
+      if: inputs.rendering == 'true' && runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq xvfb libgl1-mesa-dri libegl1 mesa-vulkan-drivers
+    - name: Download cache
+      if: inputs.cache == 'true'
+      uses: actions/cache@v5
+      with:
+        path: ~/.craftwright
+        key: craftwright-${{ runner.os }}-${{ inputs.cache-key }}

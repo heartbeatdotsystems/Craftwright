@@ -1,10 +1,7 @@
 package systems.heartbeat.craftwright;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -115,8 +112,6 @@ public final class ClientBuilder {
 			Files.createDirectories(gameDirectory.resolve("mods"));
 			Files.createDirectories(launcherDirectory);
 			Files.copy(agentJar(cache), gameDirectory.resolve("mods").resolve("craftwright-agent.jar"), StandardCopyOption.REPLACE_EXISTING);
-			Path fabricApi = fabricApi(cache);
-			Files.copy(fabricApi, gameDirectory.resolve("mods").resolve(fabricApi.getFileName()), StandardCopyOption.REPLACE_EXISTING);
 			for (Path mod : mods) {
 				Files.copy(mod, gameDirectory.resolve("mods").resolve(mod.getFileName()), StandardCopyOption.REPLACE_EXISTING);
 			}
@@ -215,30 +210,6 @@ public final class ClientBuilder {
 			Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
 			return target;
 		}
-	}
-
-	private Path fabricApi(Path cache) {
-		Path directory = cache.resolve("fabric-api").resolve(minecraftVersion);
-		try {
-			if (Files.isDirectory(directory)) {
-				try (var files = Files.list(directory)) {
-					var existing = files.filter(file -> file.toString().endsWith(".jar")).findFirst();
-					if (existing.isPresent()) {
-						return existing.get();
-					}
-				}
-			}
-		} catch (IOException ignored) {
-			// downloaded again below
-		}
-		String query = "game_versions=" + URLEncoder.encode("[\"" + minecraftVersion + "\"]", StandardCharsets.UTF_8)
-			+ "&loaders=" + URLEncoder.encode("[\"fabric\"]", StandardCharsets.UTF_8);
-		JsonArray versions = JsonParser.parseString(Downloads.text("https://api.modrinth.com/v2/project/fabric-api/version?" + query)).getAsJsonArray();
-		if (versions.isEmpty()) {
-			throw new CraftwrightException("No Fabric API release found for Minecraft " + minecraftVersion);
-		}
-		var file = versions.get(0).getAsJsonObject().getAsJsonArray("files").get(0).getAsJsonObject();
-		return Downloads.file(file.get("url").getAsString(), directory.resolve(file.get("filename").getAsString()));
 	}
 
 	private static String escape(String path) {

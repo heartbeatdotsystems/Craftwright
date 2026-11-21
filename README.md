@@ -119,12 +119,13 @@ Last chat message received:
 ## In CI
 
 ```yaml
-- uses: actions/setup-java@v5
-  with: { distribution: temurin, java-version: '25' }
-- uses: actions/cache@v5
-  with: { path: ~/.craftwright, key: craftwright-26.3 }
+- uses: actions/checkout@v5
+- uses: heartbeatdotsystems/Craftwright@main
 - run: ./gradlew test
 ```
+
+The action installs Java 25, a virtual display for clients that render, and caches the game between runs.
+Its inputs are `java-version`, `rendering`, `cache` and `cache-key`.
 
 A GitHub-hosted runner handles a server and two clients. The first run downloads the game, later runs start from the cache.
 
