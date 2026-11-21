@@ -2,6 +2,7 @@ package systems.heartbeat.craftwright;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import systems.heartbeat.craftwright.internal.Json;
@@ -108,7 +109,7 @@ public final class Menu {
 
 	private void drag(int button, int[] slotIndexes) {
 		remote.call("menu.drag", Json.object("menu", id, "button", button,
-			"slots", Json.array(java.util.Arrays.stream(slotIndexes).boxed().toList())));
+			"slots", Json.array(Arrays.stream(slotIndexes).boxed().toList())));
 	}
 
 	/** Clicks next to the menu, which throws the carried stack on the ground. */

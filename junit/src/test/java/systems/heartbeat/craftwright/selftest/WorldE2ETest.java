@@ -3,6 +3,7 @@ package systems.heartbeat.craftwright.selftest;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -90,7 +91,7 @@ class WorldE2ETest {
 		server.console("worldborder set 300");
 		try {
 			WorldBorder border = alex.await("the border to be 300 blocks wide",
-				() -> java.util.Optional.of(alex.world().border()).filter(seen -> seen.size() == 300.0 && seen.centerX() == 100.0));
+				() -> Optional.of(alex.world().border()).filter(seen -> seen.size() == 300.0 && seen.centerX() == 100.0));
 			assertEquals(-50.0, border.centerZ());
 		} finally {
 			server.console("worldborder center 0.0 0.0");
