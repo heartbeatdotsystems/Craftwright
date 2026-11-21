@@ -38,7 +38,8 @@ public final class Agent {
 	private final GameObserver observer = new GameObserver(this::emit, chatLog);
 	private final Movement movement = new Movement();
 	private final Mining mining = new Mining();
-	private final List<Ticking> ticking = List.of(movement, mining, new DisconnectWatcher(observer, this::resetControls));
+	private final DisconnectWatcher disconnects = new DisconnectWatcher(observer, this::resetControls);
+	private final List<Ticking> ticking = List.of(movement, mining, disconnects);
 	private DriverLink link;
 	private boolean started;
 
@@ -64,6 +65,11 @@ public final class Agent {
 	/** Where the mixins report what the client was shown. */
 	public GameObserver observer() {
 		return observer;
+	}
+
+	/** Where the mixins report that the server closes the connection. */
+	public DisconnectWatcher disconnects() {
+		return disconnects;
 	}
 
 	/** Called at the end of every client tick. */

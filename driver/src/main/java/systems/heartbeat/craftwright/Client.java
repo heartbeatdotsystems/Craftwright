@@ -133,7 +133,7 @@ public final class Client implements AutoCloseable {
 
 	/**
 	 * Waits until the server closes the connection (kick, ban, whitelist, shutdown)
-	 * and returns the reason shown on the disconnect screen.
+	 * and returns the reason the server gave, or what the disconnect screen says if it gave none.
 	 */
 	public Text awaitDisconnect() {
 		return awaitDisconnect(remote.timeout());

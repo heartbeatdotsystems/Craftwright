@@ -5,6 +5,7 @@
 	"client": [
 		"BossHealthOverlayAccessor",
 		"ChatComponentMixin",
+		"ClientCommonPacketListenerMixin",
 		"ClientPacketListenerMixin",
 		"DisconnectedScreenAccessor",
 		"HudMixin",

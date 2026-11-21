@@ -43,7 +43,7 @@ Requests run on the client thread, in the order they arrive. A few answer later,
 | `titleClear` | |
 | `sound` | `id`, `source`, `x`, `y`, `z`, `volume`, `pitch` |
 | `particle` | `id`, `options`, `x`, `y`, `z`, `count` |
-| `disconnect` | `reason` |
+| `disconnect` | `reason` (the server's kick reason, else the text of the disconnect screen) |
 
 ## Shapes
 
