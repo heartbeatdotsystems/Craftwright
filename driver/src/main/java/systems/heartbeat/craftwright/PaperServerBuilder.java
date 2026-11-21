@@ -35,6 +35,8 @@ public final class PaperServerBuilder {
 		this.session = session;
 		this.version = version;
 		properties.put("online-mode", "false");
+		properties.put("white-list", "false");
+		properties.put("enforce-whitelist", "false");
 		properties.put("spawn-protection", "0");
 		properties.put("view-distance", "6");
 		properties.put("simulation-distance", "6");
