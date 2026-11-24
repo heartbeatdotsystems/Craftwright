@@ -66,7 +66,9 @@ public final class HeadlessMc {
 		try {
 			Files.createDirectories(directories.launcher());
 			Files.writeString(directories.launcher().resolve("config.properties"), String.join("\n",
-				"hmc.java.versions=" + escape(javaHome),
+				// HeadlessMC liest die Liste ein zweites Mal ohne Escapes: unter Windows gingen die
+				// Backslashes verloren. Java nimmt auch Schrägstriche.
+				"hmc.java.versions=" + escape(javaHome.replace('\\', '/')),
 				"hmc.files.game=" + escape(directories.game().toAbsolutePath().toString()),
 				"hmc.files.game-for-each-version=false",
 				"hmc.files.mc=" + escape(cache.resolve("minecraft").toAbsolutePath().toString()),
