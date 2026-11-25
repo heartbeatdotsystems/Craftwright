@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   probe:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, build]
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
