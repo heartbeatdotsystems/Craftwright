@@ -17,6 +17,7 @@ import systems.heartbeat.craftwright.agent.feature.MenuFeature;
 import systems.heartbeat.craftwright.agent.feature.MovementFeature;
 import systems.heartbeat.craftwright.agent.feature.PlayerFeature;
 import systems.heartbeat.craftwright.agent.feature.ScoreboardFeature;
+import systems.heartbeat.craftwright.agent.feature.AnvilFeature;
 import systems.heartbeat.craftwright.agent.feature.TradeFeature;
 import systems.heartbeat.craftwright.agent.feature.WorldFeature;
 import systems.heartbeat.craftwright.agent.observe.ChatLog;
@@ -51,6 +52,7 @@ public final class Agent {
 			new ScoreboardFeature(),
 			new MenuFeature(),
 			new TradeFeature(),
+			new AnvilFeature(),
 			new PlayerFeature(),
 			new MovementFeature(movement),
 			new InteractionFeature(mining),

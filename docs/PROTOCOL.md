@@ -92,6 +92,7 @@ Requests run on the client thread, in the order they arrive. A few answer later,
 | `menu.close` | | |
 | `trade.offers` | | `merchantLevel`, `offers[]`: `index`, `firstCost`, `secondCost`, `result`, `uses`, `maxUses`, `outOfStock` |
 | `trade.select` | `index` | |
+| `anvil.rename` | `name` | |
 
 ### Player
 
