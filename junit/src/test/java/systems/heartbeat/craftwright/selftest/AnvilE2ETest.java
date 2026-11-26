@@ -3,8 +3,10 @@ package systems.heartbeat.craftwright.selftest;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.Duration;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import systems.heartbeat.craftwright.AwaitTimeoutException;
 import systems.heartbeat.craftwright.Client;
 import systems.heartbeat.craftwright.Item;
 import systems.heartbeat.craftwright.Menu;
@@ -23,8 +25,7 @@ class AnvilE2ETest {
 		Stage stage = Stage.enter(server, alex, 80, 0);
 		stage.give("paper", 1);
 		stage.place(1, 0, 0, "anvil");
-		alex.player().useBlock(stage.x(1), stage.y(0), stage.z(0));
-		Menu anvil = alex.menus().await();
+		Menu anvil = open(alex, stage);
 		assertEquals("minecraft:anvil", anvil.type());
 
 		anvil.findItem("paper").orElseThrow().shiftClick();
@@ -36,5 +37,22 @@ class AnvilE2ETest {
 			.slot(Menus.ANVIL_RESULT_SLOT).item().orElseThrow();
 		assertTrue(result.is("paper"));
 		alex.menus().current().ifPresent(Menu::close);
+	}
+
+	/**
+	 * Right after joining and the teleport onto the stage the server can drop the first click on a
+	 * block (it still waits for the teleport to settle). Clicks again a few times before giving up.
+	 */
+	private static Menu open(Client alex, Stage stage) {
+		AwaitTimeoutException last = null;
+		for (int attempt = 0; attempt < 3; attempt++) {
+			alex.player().useBlock(stage.x(1), stage.y(0), stage.z(0));
+			try {
+				return alex.menus().await(menu -> true, Duration.ofSeconds(4));
+			} catch (AwaitTimeoutException timeout) {
+				last = timeout;
+			}
+		}
+		throw last;
 	}
 }
