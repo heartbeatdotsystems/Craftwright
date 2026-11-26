@@ -3,6 +3,7 @@ package systems.heartbeat.craftwright;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.function.Predicate;
+import systems.heartbeat.craftwright.internal.Json;
 
 /**
  * The screens with slots a client has in front of it.
@@ -61,6 +62,17 @@ public final class Menus {
 	public Menu inventory() {
 		return Menu.of(remote, remote.call("menu.inventory")).orElseThrow();
 	}
+
+	/**
+	 * Types into the name field of the anvil that is open right now, like a player would. The
+	 * renamed item then shows in the result slot ({@link #ANVIL_RESULT_SLOT}) of the open {@link Menu}.
+	 */
+	public void rename(String name) {
+		remote.call("anvil.rename", Json.object("name", name));
+	}
+
+	/** The slot of an anvil menu that holds the renamed item. */
+	public static final int ANVIL_RESULT_SLOT = 2;
 
 	/** The trading screen that is open right now. Use a villager first. */
 	public Merchant merchant() {
